@@ -63,6 +63,18 @@ http://localhost:8080/api/applications
 
 Databasetabellen opprettes automatisk ved oppstart med `spring.jpa.hibernate.ddl-auto=update`.
 
+## Deploy
+
+Repoet inneholder `Dockerfile` og `render.yaml`, slik at appen kan deployes på Render som en Blueprint med én webservice og én PostgreSQL-database.
+
+1. Åpne Render Dashboard.
+2. Velg **New** → **Blueprint**.
+3. Koble til dette GitHub-repoet.
+4. Velg `render.yaml`.
+5. Deploy Blueprint.
+
+Render oppretter Postgres-databasen og sender database-URL-en til appen som `DATABASE_URL`. Appen konverterer automatisk Render sin `postgresql://...`-URL til Spring Boot sin JDBC-format ved oppstart.
+
 ## Datamodell
 
 | Felt | Type | Påkrevd | Beskrivelse |

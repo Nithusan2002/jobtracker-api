@@ -1,73 +1,93 @@
-# JobTracker API
+# JobTracker
 
-REST-API for å spore egne jobbsøknader (bedrift, stilling, søknadsdato, status, lenke og notater).
+JobTracker er en enkel webapp og REST-API for å holde oversikt over jobbsøknader. Den lar deg registrere bedrift, stilling, søknadsdato, status, stillingslenke og notater, og passer som et lite porteføljeprosjekt for Kotlin/Spring Boot med PostgreSQL.
 
-## Teknologier
+![JobTracker skjermbilde](docs/jobtracker-screenshot.png)
 
-- **Kotlin + Spring Boot 3.3** — for et lite, typesikkert og velkjent Spring-økosystem uten mye boilerplate.
-- **Spring Data JPA + Hibernate** — CRUD mot databasen uten håndskrevet SQL.
-- **PostgreSQL** — ekte relasjonsdatabase, ikke en in-memory-database som forsvinner ved restart.
-- **Gradle (Kotlin DSL)** — bygg-verktøy, samme språk som resten av prosjektet.
+## Funksjoner
 
-Ingen autentisering, brukerhåndtering, frontend eller LLM-integrasjon — bevisst utelatt fra scope.
+- Registrer nye jobbsøknader
+- Se alle søknader i en ryddig tabell
+- Søk på bedrift eller stilling
+- Filtrer på status: `SENT`, `INTERVIEW`, `REJECTED`, `OFFER`
+- Rediger eksisterende søknader
+- Slett søknader
+- REST-API under `/api/applications`
+- Validering og tydelige `400`/`404`-feilsvar
 
-## Datamodell
+## Teknologistack
 
-Én entitet, `Application`:
+- Kotlin
+- Spring Boot 3.3
+- Spring Web
+- Spring Data JPA / Hibernate
+- PostgreSQL
+- Gradle Kotlin DSL
+- HTML, CSS og JavaScript
 
-| Felt              | Type      | Påkrevd | Beskrivelse                                  |
-|-------------------|-----------|---------|-----------------------------------------------|
-| `id`              | Long      | auto    | Genereres av databasen                        |
-| `companyName`     | String    | ja      | Navn på bedriften                             |
-| `jobTitle`        | String    | ja      | Stillingstittel                               |
-| `applicationDate` | LocalDate | ja      | Dato søknaden ble sendt (`YYYY-MM-DD`)        |
-| `status`          | enum      | ja      | `SENT`, `INTERVIEW`, `REJECTED`, `OFFER`      |
-| `jobListingUrl`   | String    | nei     | Lenke til stillingsannonsen                   |
-| `notes`           | String    | nei     | Fritekstnotater                               |
+## Kjøre lokalt
 
-## Kjøre prosjektet lokalt
-
-### 1. Start database
+### 1. Start PostgreSQL
 
 ```bash
 docker run --name jobtracker-db \
   -e POSTGRES_PASSWORD=devpass \
   -e POSTGRES_DB=jobtracker \
   -p 5432:5432 \
-  -d postgres
+  -d postgres:15
 ```
 
-### 2. Konfigurasjon
+Hvis containeren allerede finnes:
 
-`src/main/resources/application.yml` peker allerede mot `jdbc:postgresql://localhost:5432/jobtracker` med bruker `postgres` / passord `devpass` (matcher Docker-kommandoen over). Endre der ved behov.
+```bash
+docker start jobtracker-db
+```
 
-Databasetabellen opprettes automatisk ved oppstart (`spring.jpa.hibernate.ddl-auto: update`) — ingen migrasjonsverktøy nødvendig for dette lille prosjektet.
-
-### 3. Start appen
+### 2. Start appen
 
 ```bash
 ./gradlew bootRun
 ```
 
-API-et kjører på `http://localhost:8080`.
+Åpne webappen:
 
-## Endepunkter
-
-Alle under `/api/applications`.
-
-### `GET /api/applications` — liste alle
-
-```bash
-curl http://localhost:8080/api/applications
+```text
+http://localhost:8080/
 ```
 
-### `GET /api/applications/{id}` — hent én
+API-et ligger her:
 
-```bash
-curl http://localhost:8080/api/applications/1
+```text
+http://localhost:8080/api/applications
 ```
 
-### `POST /api/applications` — opprett ny
+Databasetabellen opprettes automatisk ved oppstart med `spring.jpa.hibernate.ddl-auto=update`.
+
+## Datamodell
+
+| Felt | Type | Påkrevd | Beskrivelse |
+| --- | --- | --- | --- |
+| `id` | Long | auto | Genereres av databasen |
+| `companyName` | String | ja | Navn på bedriften |
+| `jobTitle` | String | ja | Stillingstittel |
+| `applicationDate` | LocalDate | ja | Dato søknaden ble sendt |
+| `status` | enum | ja | `SENT`, `INTERVIEW`, `REJECTED`, `OFFER` |
+| `jobListingUrl` | String | nei | Lenke til stillingsannonsen |
+| `notes` | String | nei | Fritekstnotater |
+
+## API
+
+Alle endepunkter ligger under `/api/applications`.
+
+| Metode | Endepunkt | Beskrivelse |
+| --- | --- | --- |
+| `GET` | `/api/applications` | Hent alle søknader |
+| `GET` | `/api/applications/{id}` | Hent én søknad |
+| `POST` | `/api/applications` | Opprett søknad |
+| `PUT` | `/api/applications/{id}` | Oppdater søknad |
+| `DELETE` | `/api/applications/{id}` | Slett søknad |
+
+### Eksempel: opprett søknad
 
 ```bash
 curl -X POST http://localhost:8080/api/applications \
@@ -75,38 +95,21 @@ curl -X POST http://localhost:8080/api/applications \
   -d '{
     "companyName": "Computas",
     "jobTitle": "Backend-utvikler",
-    "applicationDate": "2026-08-01",
+    "applicationDate": "2026-08-11",
     "status": "SENT",
     "jobListingUrl": "https://example.com/job/123",
     "notes": "Søkte via finn.no"
   }'
 ```
 
-### `PUT /api/applications/{id}` — oppdater eksisterende
+### Statuskoder
 
-```bash
-curl -X PUT http://localhost:8080/api/applications/1 \
-  -H "Content-Type: application/json" \
-  -d '{
-    "companyName": "Computas",
-    "jobTitle": "Backend-utvikler",
-    "applicationDate": "2026-08-01",
-    "status": "INTERVIEW",
-    "jobListingUrl": "https://example.com/job/123",
-    "notes": "Fikk intervju 15. august"
-  }'
-```
+- `200 OK` ved vellykket `GET` og `PUT`
+- `201 Created` ved vellykket `POST`
+- `204 No Content` ved vellykket `DELETE`
+- `400 Bad Request` ved valideringsfeil
+- `404 Not Found` når søknaden ikke finnes
 
-### `DELETE /api/applications/{id}` — slett
+## Lisens
 
-```bash
-curl -X DELETE http://localhost:8080/api/applications/1
-```
-
-## Statuskoder
-
-- `200 OK` — vellykket GET/PUT
-- `201 Created` — vellykket POST
-- `204 No Content` — vellykket DELETE
-- `400 Bad Request` — valideringsfeil (f.eks. manglende `companyName`)
-- `404 Not Found` — søknad med gitt id finnes ikke
+MIT License. Se [LICENSE](LICENSE).

@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="no">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>JobTracker</title>
+		<link rel="stylesheet" href="/styles.css" />
+	</head>
+	<body>
+		<header class="topbar">
+			<div>
+				<p class="eyebrow">JobTracker</p>
+				<h1>Søknadsoversikt</h1>
+			</div>
+			<div class="summary" aria-live="polite">
+				<span id="totalCount">0 søknader</span>
+				<span id="activeCount">0 aktive</span>
+			</div>
+		</header>
+
+		<main class="layout">
+			<section class="workspace" aria-labelledby="applicationsTitle">
+				<div class="toolbar">
+					<div>
+						<h2 id="applicationsTitle">Søknader</h2>
+						<p id="statusText">Laster inn...</p>
+					</div>
+					<div class="filters">
+						<label>
+							<span>Søk</span>
+							<input id="searchInput" type="search" placeholder="Bedrift eller stilling" />
+						</label>
+						<label>
+							<span>Status</span>
+							<select id="statusFilter">
+								<option value="ALL">Alle</option>
+								<option value="SENT">Sendt</option>
+								<option value="INTERVIEW">Intervju</option>
+								<option value="REJECTED">Avslag</option>
+								<option value="OFFER">Tilbud</option>
+							</select>
+						</label>
+					</div>
+				</div>
+
+				<div class="tableWrap">
+					<table>
+						<thead>
+							<tr>
+								<th>Bedrift</th>
+								<th>Stilling</th>
+								<th>Dato</th>
+								<th>Status</th>
+								<th>Notater</th>
+								<th class="actionsCol">Handling</th>
+							</tr>
+						</thead>
+						<tbody id="applicationsTable"></tbody>
+					</table>
+					<div id="emptyState" class="emptyState" hidden>
+						<h3>Ingen søknader funnet</h3>
+						<p>Legg inn din første søknad, eller endre filteret.</p>
+					</div>
+				</div>
+			</section>
+
+			<aside class="editor" aria-labelledby="formTitle">
+				<div class="editorHeader">
+					<h2 id="formTitle">Ny søknad</h2>
+					<button id="resetButton" class="ghost" type="button">Nullstill</button>
+				</div>
+
+				<form id="applicationForm">
+					<input id="applicationId" type="hidden" />
+
+					<label>
+						<span>Bedrift</span>
+						<input id="companyName" required autocomplete="organization" />
+					</label>
+
+					<label>
+						<span>Stilling</span>
+						<input id="jobTitle" required autocomplete="off" />
+					</label>
+
+					<label>
+						<span>Søknadsdato</span>
+						<input id="applicationDate" type="date" required />
+					</label>
+
+					<label>
+						<span>Status</span>
+						<select id="status" required>
+							<option value="SENT">Sendt</option>
+							<option value="INTERVIEW">Intervju</option>
+							<option value="REJECTED">Avslag</option>
+							<option value="OFFER">Tilbud</option>
+						</select>
+					</label>
+
+					<label>
+						<span>Stillingslenke</span>
+						<input id="jobListingUrl" type="url" placeholder="https://..." />
+					</label>
+
+					<label>
+						<span>Notater</span>
+						<textarea id="notes" rows="5" placeholder="Oppfølging, kontaktperson, frist..."></textarea>
+					</label>
+
+					<p id="formError" class="formError" role="alert" hidden></p>
+
+					<button id="submitButton" class="primary" type="submit">Lagre søknad</button>
+				</form>
+			</aside>
+		</main>
+
+		<script src="/app.js"></script>
+	</body>
+</html>

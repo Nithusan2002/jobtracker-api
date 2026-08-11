@@ -14,6 +14,7 @@ JobTracker er en enkel webapp og REST-API for å holde oversikt over jobbsøknad
 - Slett søknader
 - REST-API under `/api/applications`
 - Validering og tydelige `400`/`404`-feilsvar
+- Demo-data legges inn automatisk første gang databasen er tom
 
 ## Teknologistack
 
@@ -62,6 +63,8 @@ http://localhost:8080/api/applications
 ```
 
 Databasetabellen opprettes automatisk ved oppstart med `spring.jpa.hibernate.ddl-auto=update`.
+
+Når databasen er tom, legger appen inn noen realistiske demo-søknader automatisk. Eksisterende data blir ikke overskrevet.
 
 ## Deploy
 

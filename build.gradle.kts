@@ -9,6 +9,9 @@ plugins {
 group = "com.nithusan"
 version = "0.0.1"
 
+// Spring Boot 3.3's default Testcontainers version predates Docker Engine 29 support.
+extra["testcontainers.version"] = "1.21.4"
+
 java {
 	sourceCompatibility = JavaVersion.VERSION_17
 	targetCompatibility = JavaVersion.VERSION_17
@@ -26,6 +29,8 @@ dependencies {
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 	runtimeOnly("org.postgresql:postgresql")
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
+	testImplementation("org.testcontainers:junit-jupiter")
+	testImplementation("org.testcontainers:postgresql")
 }
 
 kotlin {

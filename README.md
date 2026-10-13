@@ -1,5 +1,7 @@
 # JobTracker
 
+[![CI](https://github.com/Nithusan2002/jobtracker-api/actions/workflows/ci.yml/badge.svg)](https://github.com/Nithusan2002/jobtracker-api/actions/workflows/ci.yml)
+
 JobTracker er en enkel webapp og REST-API for å holde oversikt over jobbsøknader. Den lar deg registrere bedrift, stilling, søknadsdato, status, stillingslenke og notater, og passer som et lite porteføljeprosjekt for Kotlin/Spring Boot med PostgreSQL.
 
 ![JobTracker skjermbilde](docs/jobtracker-screenshot.png)
@@ -27,6 +29,9 @@ JobTracker er en enkel webapp og REST-API for å holde oversikt over jobbsøknad
 - HTML, CSS og JavaScript
 
 ## Kjøre lokalt
+
+Du trenger **Java 17** og **Docker** (for PostgreSQL og integrasjonstestene).
+Gradle lastes ned automatisk av Gradle Wrapper; du trenger ikke installere Gradle.
 
 ### 1. Start PostgreSQL
 
@@ -65,6 +70,49 @@ http://localhost:8080/api/applications
 Databasetabellen opprettes automatisk ved oppstart med `spring.jpa.hibernate.ddl-auto=update`.
 
 Når databasen er tom, legger appen inn noen realistiske demo-søknader automatisk. Eksisterende data blir ikke overskrevet.
+
+## Arkitektur
+
+```mermaid
+flowchart LR
+    Browser["Nettleser: HTML/CSS/JavaScript"] -->|"JSON /api/applications"| Controller[ApplicationController]
+    Controller --> Service[ApplicationService]
+    Service --> Repository[ApplicationRepository]
+    Repository -->|"JPA / Hibernate"| Database[(PostgreSQL)]
+    Controller -.->|"Validering og 404"| Errors[GlobalExceptionHandler]
+```
+
+Spring Boot serverer både webgrensesnittet og API-et fra samme app. Controlleren håndterer
+HTTP og inputvalidering, servicen utfører CRUD-operasjonene, og repository-laget lagrer
+data i PostgreSQL. Dette holder prosjektet enkelt å kjøre og deploye.
+
+## Tester og CI
+
+Med Java 17 og Docker i gang:
+
+```bash
+./gradlew test bootJar
+```
+
+Integrasjonstestene starter en separat PostgreSQL 17-container med Testcontainers.
+Du trenger ikke starte den lokale databasen først, og testene bruker ikke dine lokale
+søknadsdata. Første kjøring laster ned Gradle, avhengigheter og Docker-images.
+
+Testene dekker alle fem API-endepunktene, lagring og oppdatering av data, tom liste,
+`400` ved tomme påkrevde felt og ugyldig JSON/dato/status, samt `404` for ukjent ID.
+Avviste opprettelser og oppdateringer skal ikke endre databasen.
+
+Testrapporten ligger i `build/reports/tests/test/index.html`.
+GitHub Actions kjører `./gradlew test bootJar --no-daemon` på push og pull requests
+med Java 17, og laster opp testrapporter som artifacts. Workflowen kan også startes manuelt.
+
+## Kjente begrensninger
+
+- Ingen autentisering eller tilgang per bruker; en offentlig demo må kun bruke fiktive data.
+- Skjemaet oppdateres av Hibernate, uten Flyway/Liquibase-migreringer.
+- Validering mangler lengdegrenser og kontroll av HTTP/HTTPS-protokoll for stillingslenker.
+- Ugyldig JSON/dato/status gir `400`, men bruker ikke samme egendefinerte feilformat som feltvalidering.
+- Gratis Render Postgres utløper etter 30 dager; bruk ekstern database for en varig gratis demo.
 
 ## Deploy
 

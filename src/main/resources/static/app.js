@@ -8,6 +8,7 @@ const statusLabels = {
 };
 
 let applications = [];
+let configurationLoaded = false;
 
 const elements = {
 	table: document.querySelector("#applicationsTable"),
@@ -51,6 +52,16 @@ function formatDate(value) {
 	}).format(new Date(`${value}T00:00:00`));
 }
 
+function safeListingUrl(value) {
+	if (!value) return null;
+	try {
+		const url = new URL(value);
+		return ["http:", "https:"].includes(url.protocol) && !url.username && !url.password ? url.href : null;
+	} catch {
+		return null;
+	}
+}
+
 function getFilteredApplications() {
 	const query = elements.searchInput.value.trim().toLowerCase();
 	const status = elements.statusFilter.value;
@@ -81,8 +92,9 @@ function renderApplications() {
 
 	filtered.forEach((application) => {
 		const row = document.createElement("tr");
-		const link = application.jobListingUrl
-			? `<a class="link" href="${escapeHtml(application.jobListingUrl)}" target="_blank" rel="noreferrer">Åpne annonse</a>`
+		const listingUrl = safeListingUrl(application.jobListingUrl);
+		const link = listingUrl
+			? `<a class="link" href="${escapeHtml(listingUrl)}" target="_blank" rel="noopener noreferrer">Åpne annonse</a>`
 			: "";
 
 		row.innerHTML = `
@@ -160,7 +172,8 @@ async function requestJson(url, options = {}) {
 
 	if (!response.ok) {
 		const error = await response.json().catch(() => ({}));
-		throw new Error(error.message || "Noe gikk galt.");
+		const details = error.fieldErrors ? Object.values(error.fieldErrors).join(". ") : "";
+		throw new Error(details || error.message || "Noe gikk galt.");
 	}
 
 	if (response.status === 204) return null;
@@ -175,6 +188,7 @@ async function loadApplications() {
 
 async function saveApplication(event) {
 	event.preventDefault();
+	if (!configurationLoaded) return;
 	setFormError("");
 	elements.submitButton.disabled = true;
 
@@ -211,9 +225,16 @@ async function handleTableClick(event) {
 	}
 
 	if (button.dataset.action === "delete") {
-		await requestJson(`${API_URL}/${id}`, { method: "DELETE" });
-		await loadApplications();
-		if (elements.fields.id.value === String(id)) resetForm();
+		button.disabled = true;
+		try {
+			await requestJson(`${API_URL}/${id}`, { method: "DELETE" });
+			await loadApplications();
+			if (elements.fields.id.value === String(id)) resetForm();
+		} catch (error) {
+			setFormError(error.message);
+		} finally {
+			button.disabled = false;
+		}
 	}
 }
 
@@ -224,7 +245,20 @@ elements.searchInput.addEventListener("input", renderApplications);
 elements.statusFilter.addEventListener("change", renderApplications);
 
 resetForm();
-loadApplications().catch((error) => {
+async function initialize() {
+	const demo = await requestJson("/api/demo");
+	if (demo.enabled) {
+		const minutes = Math.round(demo.resetIntervalSeconds / 60);
+		document.querySelector("#demoDescription").textContent =
+			`Alle besøkende kan se, endre og slette oppføringene. Data tilbakestilles hvert ${minutes}. minutt og ved omstart. Ikke legg inn personopplysninger eller virkelige jobbsøknader.`;
+		document.querySelector("#demoNotice").hidden = false;
+	}
+	configurationLoaded = true;
+	elements.submitButton.disabled = false;
+	await loadApplications();
+}
+
+initialize().catch((error) => {
 	elements.statusText.textContent = "Kunne ikke laste søknader.";
 	setFormError(error.message);
 });

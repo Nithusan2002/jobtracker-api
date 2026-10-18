@@ -11,6 +11,8 @@ version = "0.0.1"
 
 // Spring Boot 3.3's default Testcontainers version predates Docker Engine 29 support.
 extra["testcontainers.version"] = "1.21.4"
+// PostgreSQL 17 support while staying on Flyway's Spring Boot 3.3-compatible major.
+extra["flyway.version"] = "10.22.0"
 
 java {
 	sourceCompatibility = JavaVersion.VERSION_17
@@ -25,6 +27,9 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-web")
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 	implementation("org.springframework.boot:spring-boot-starter-validation")
+	implementation("org.springframework.boot:spring-boot-starter-actuator")
+	implementation("org.flywaydb:flyway-core")
+	runtimeOnly("org.flywaydb:flyway-database-postgresql")
 	implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 	runtimeOnly("org.postgresql:postgresql")

@@ -16,7 +16,7 @@ JobTracker er en enkel webapp og REST-API for å holde oversikt over jobbsøknad
 - Slett søknader
 - REST-API under `/api/applications`
 - Validering og tydelige `400`/`404`-feilsvar
-- Demo-data legges inn automatisk første gang databasen er tom
+- Egen offentlig demomodus med fiktive data, automatisk tilbakestilling og grenser mot misbruk
 
 ## Teknologistack
 
@@ -24,7 +24,7 @@ JobTracker er en enkel webapp og REST-API for å holde oversikt over jobbsøknad
 - Spring Boot 3.3
 - Spring Web
 - Spring Data JPA / Hibernate
-- PostgreSQL
+- PostgreSQL og Flyway-migreringer
 - Gradle Kotlin DSL
 - HTML, CSS og JavaScript
 
@@ -39,8 +39,8 @@ Gradle lastes ned automatisk av Gradle Wrapper; du trenger ikke installere Gradl
 docker run --name jobtracker-db \
   -e POSTGRES_PASSWORD=devpass \
   -e POSTGRES_DB=jobtracker \
-  -p 5432:5432 \
-  -d postgres:15
+  -p 127.0.0.1:5432:5432 \
+  -d postgres:17-alpine
 ```
 
 Hvis containeren allerede finnes:
@@ -67,9 +67,42 @@ API-et ligger her:
 http://localhost:8080/api/applications
 ```
 
-Databasetabellen opprettes automatisk ved oppstart med `spring.jpa.hibernate.ddl-auto=update`.
+Flyway oppretter skjemaet ved oppstart. Hibernate bruker `ddl-auto=validate` og endrer ikke tabellene.
+Vanlig modus starter uten eksempeldata og sletter aldri data automatisk.
 
-Når databasen er tom, legger appen inn noen realistiske demo-søknader automatisk. Eksisterende data blir ikke overskrevet.
+### Eksisterende database fra før Flyway
+
+Ta sikkerhetskopi først. På en database med det tidligere Hibernate-skjemaet setter du
+`FLYWAY_BASELINE_ON_MIGRATE=true` ved første oppstart. Flyway markerer utgangspunktet som versjon 0,
+kjører V1 uten å overskrive tabellen og beholder radene. Fjern variabelen etterpå.
+Uten dette eksplisitte valget nekter Flyway å migrere et ukjent, ikke-tomt skjema.
+Hibernate validerer at skjemaet stemmer. Testene kontrollerer at eksisterende rader bevares.
+
+### Offentlig demomodus
+
+Bruk **en egen database uten personopplysninger**. Med `JOBTRACKER_DEMO_ENABLED=true`
+slettes alle søknader i denne databasen ved oppstart og deretter hver halvtime,
+og fem tydelig fiktive søknader legges inn på nytt. Ikke aktiver dette mot en privat database.
+
+```bash
+JOBTRACKER_DEMO_ENABLED=true ./gradlew bootRun
+```
+
+Demoen har ingen innlogging. Alle kan se, endre og slette oppføringene; dette opplyses på siden.
+Den har maks 100 oppføringer, 120 API-forespørsler og 20 skriveforespørsler per minutt.
+Forespørselsgrensene deles av alle besøkende i én appinstans, også bak en proxy.
+Ingen IP-adresser eller brukeridentifikatorer lagres av begrensningen.
+Ved `429` følger `Retry-After` med. Store skriveforespørsler over 16 KiB gir `413`,
+og full demo gir `409`. Cross-site-skriving fra moderne nettlesere avvises.
+
+Grenser og reset-intervall kan endres med Spring-egenskapene `jobtracker.demo.max-applications`,
+`requests-per-minute`, `writes-per-minute` og `reset-interval` (standard `PT30M`).
+Tilbakestilling og API-endringer bruker samme PostgreSQL-transaksjonslås, slik at samtidige
+opprettelser ikke kan omgå maksgrensen og tilbakestilling ikke kan gi en halvferdig datasamling.
+Kjør én appinstans; ratebegrensningen er ikke distribuert og erstatter ikke vern mot DDoS.
+
+`GET /api/demo` forteller grensesnittet om demomodus. `GET /actuator/health` kontrollerer
+også databasen, uten å eksponere tilkoblingsdetaljer.
 
 ## Arkitektur
 
@@ -101,6 +134,9 @@ søknadsdata. Første kjøring laster ned Gradle, avhengigheter og Docker-images
 Testene dekker alle fem API-endepunktene, lagring og oppdatering av data, tom liste,
 `400` ved tomme påkrevde felt og ugyldig JSON/dato/status, samt `404` for ukjent ID.
 Avviste opprettelser og oppdateringer skal ikke endre databasen.
+Testene dekker også feltgrenser og lenkeprotokoller, demo-reset og maksgrense med samtidige
+opprettelser, store forespørsler uten Content-Length, ratebegrensning og Retry-After,
+samt migrering av en eksisterende database uten tap av rader.
 
 Testrapporten ligger i `build/reports/tests/test/index.html`.
 GitHub Actions kjører `./gradlew test bootJar --no-daemon` på push og pull requests
@@ -108,23 +144,22 @@ med Java 17, og laster opp testrapporter som artifacts. Workflowen kan også sta
 
 ## Kjente begrensninger
 
-- Ingen autentisering eller tilgang per bruker; en offentlig demo må kun bruke fiktive data.
-- Skjemaet oppdateres av Hibernate, uten Flyway/Liquibase-migreringer.
-- Validering mangler lengdegrenser og kontroll av HTTP/HTTPS-protokoll for stillingslenker.
-- Ugyldig JSON/dato/status gir `400`, men bruker ikke samme egendefinerte feilformat som feltvalidering.
-- Gratis Render Postgres utløper etter 30 dager; bruk ekstern database for en varig gratis demo.
+- Ingen autentisering eller tilgang per bruker. Dette er en felles demo, ikke et sted for virkelige søknader.
+- Søking og filtrering skjer i nettleseren. API-et henter hele listen, som begrenses til 100 rader i demoen.
+- Ratebegrensning er global per appinstans. En ivrig besøkende kan midlertidig bruke opp budsjettet for andre.
+- Tilbakestilling skjer hver halvtime mens appen kjører, og ved omstart. Hvis hosting stanser appen, gjenopprettes fiktive data neste gang den starter.
 
 ## Deploy
 
-Repoet inneholder `Dockerfile` og `render.yaml`, slik at appen kan deployes på Render som en Blueprint med én webservice og én PostgreSQL-database.
+[Oppskrift for offentlig demo](docs/public-demo.md) beskriver oppsett og kontrollpunkter.
+`render.yaml` oppretter én gratis webservice med Docker, demomodus og databasebasert helsesjekk.
+Den oppretter **ikke** en database eller et betalt abonnement. Du må gi den `DATABASE_URL`
+for en egen PostgreSQL-database. Ikke bruk en database som inneholder andre prosjekters data.
 
-1. Åpne Render Dashboard.
-2. Velg **New** → **Blueprint**.
-3. Koble til dette GitHub-repoet.
-4. Velg `render.yaml`.
-5. Deploy Blueprint.
-
-Render oppretter Postgres-databasen og sender database-URL-en til appen som `DATABASE_URL`. Appen konverterer automatisk Render sin `postgresql://...`-URL til Spring Boot sin JDBC-format ved oppstart.
+Appen støtter `postgresql://bruker:passord@vert/database?sslmode=require` (og `postgres://`),
+og konverterer til JDBC ved oppstart. Prosentkodede passord og pluss-tegn håndteres uten dobbel dekoding.
+Alternativt kan du bruke `SPRING_DATASOURCE_URL` (JDBC), `SPRING_DATASOURCE_USERNAME` og
+`SPRING_DATASOURCE_PASSWORD`. Legg hemmeligheter i hostingens miljøvariabler, aldri i Git.
 
 ## Datamodell
 
@@ -156,12 +191,12 @@ Alle endepunkter ligger under `/api/applications`.
 curl -X POST http://localhost:8080/api/applications \
   -H "Content-Type: application/json" \
   -d '{
-    "companyName": "Computas",
+    "companyName": "Fjord Demo AS",
     "jobTitle": "Backend-utvikler",
     "applicationDate": "2026-08-11",
     "status": "SENT",
     "jobListingUrl": "https://example.com/job/123",
-    "notes": "Søkte via finn.no"
+    "notes": "Fiktiv demosøknad"
   }'
 ```
 
@@ -172,6 +207,9 @@ curl -X POST http://localhost:8080/api/applications \
 - `204 No Content` ved vellykket `DELETE`
 - `400 Bad Request` ved valideringsfeil
 - `404 Not Found` når søknaden ikke finnes
+- `409 Conflict` når demoen har nådd maks antall oppføringer
+- `413 Payload Too Large` ved mer enn 16 KiB i demomodus
+- `429 Too Many Requests` når demoens felles forespørselsgrense er brukt opp
 
 ## Lisens
 

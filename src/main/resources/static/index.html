@@ -4,6 +4,7 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<title>JobTracker</title>
+		<link rel="icon" href="data:," />
 		<link rel="stylesheet" href="/styles.css" />
 	</head>
 	<body>
@@ -17,6 +18,11 @@
 				<span id="activeCount">0 aktive</span>
 			</div>
 		</header>
+
+		<section id="demoNotice" class="demoNotice" aria-label="Om demoen" hidden>
+			<strong>Offentlig demo med fiktive data</strong>
+			<p id="demoDescription"></p>
+		</section>
 
 		<main class="layout">
 			<section class="workspace" aria-labelledby="applicationsTitle">
@@ -75,12 +81,12 @@
 
 					<label>
 						<span>Bedrift</span>
-						<input id="companyName" required autocomplete="organization" />
+						<input id="companyName" required maxlength="255" autocomplete="off" />
 					</label>
 
 					<label>
 						<span>Stilling</span>
-						<input id="jobTitle" required autocomplete="off" />
+						<input id="jobTitle" required maxlength="255" autocomplete="off" />
 					</label>
 
 					<label>
@@ -100,17 +106,17 @@
 
 					<label>
 						<span>Stillingslenke</span>
-						<input id="jobListingUrl" type="url" placeholder="https://..." />
+						<input id="jobListingUrl" type="url" maxlength="255" pattern="[Hh][Tt][Tt][Pp][Ss]?://.*" placeholder="https://..." />
 					</label>
 
 					<label>
 						<span>Notater</span>
-						<textarea id="notes" rows="5" placeholder="Oppfølging, kontaktperson, frist..."></textarea>
+						<textarea id="notes" rows="5" maxlength="2000" placeholder="Oppfølging, frist..."></textarea>
 					</label>
 
 					<p id="formError" class="formError" role="alert" hidden></p>
 
-					<button id="submitButton" class="primary" type="submit">Lagre søknad</button>
+					<button id="submitButton" class="primary" type="submit" disabled>Lagre søknad</button>
 				</form>
 			</aside>
 		</main>

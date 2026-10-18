@@ -102,6 +102,17 @@ h2 {
 	padding: 22px clamp(16px, 4vw, 48px) 42px;
 }
 
+.demoNotice {
+	margin: 20px clamp(16px, 4vw, 48px) 0;
+	padding: 16px 20px;
+	border: 1px solid var(--green);
+	border-radius: 12px;
+	background: var(--surface-strong);
+}
+
+.demoNotice p { margin: 6px 0 0; line-height: 1.5; }
+.demoNotice[hidden] { display: none; }
+
 .workspace,
 .editor {
 	background: var(--surface);

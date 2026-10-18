@@ -9,6 +9,7 @@ import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import org.junit.jupiter.params.provider.ValueSource
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.context.ApplicationContext
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.http.HttpMethod
@@ -35,6 +36,8 @@ import java.util.stream.Stream
 @Testcontainers
 class ApplicationApiIntegrationTest {
 	@Autowired
+	lateinit var context: ApplicationContext
+	@Autowired
 	lateinit var mockMvc: MockMvc
 
 	@Autowired
@@ -47,6 +50,24 @@ class ApplicationApiIntegrationTest {
 	fun clearDatabase() {
 		// Includes demo data seeded at startup; never connects to the developer's database.
 		repository.deleteAll()
+	}
+
+	@Test
+	fun `normal mode never enables destructive demo reset`() {
+		assertThat(context.getBeansOfType(DemoDataService::class.java)).isEmpty()
+		mockMvc.perform(get("/api/demo"))
+			.andExpect(status().isOk)
+			.andExpect(jsonPath("$.enabled").value(false))
+			.andExpect(jsonPath("$.resetIntervalSeconds").value(0))
+	}
+
+	@Test
+	fun `maximum field lengths and https urls are accepted`() {
+		mockMvc.perform(post(API).contentType(MediaType.APPLICATION_JSON).content(json(payload() + mapOf(
+			"companyName" to "a".repeat(255), "jobTitle" to "b".repeat(255),
+			"notes" to "n".repeat(2000), "jobListingUrl" to ("https://example.com/" + "a".repeat(235))
+		))))
+			.andExpect(status().isCreated)
 	}
 
 	@Test
@@ -221,7 +242,18 @@ class ApplicationApiIntegrationTest {
 			Arguments.of("companyName", "   "),
 			Arguments.of("jobTitle", ""),
 			Arguments.of("jobTitle", "   "),
-			Arguments.of("applicationDate", null)
+			Arguments.of("applicationDate", null),
+			Arguments.of("companyName", "a".repeat(256)),
+			Arguments.of("jobTitle", "a".repeat(256)),
+			Arguments.of("notes", "a".repeat(2001)),
+			Arguments.of("jobListingUrl", "https://example.com/" + "a".repeat(256)),
+			Arguments.of("jobListingUrl", "javascript:alert(1)"),
+			Arguments.of("jobListingUrl", "data:text/html,hello"),
+			Arguments.of("jobListingUrl", "//example.com"),
+			Arguments.of("jobListingUrl", "https://"),
+			Arguments.of("jobListingUrl", "https://user:password@example.com"),
+			Arguments.of("jobListingUrl", "https://example.com:99999"),
+			Arguments.of("jobListingUrl", "https://example.com/a b")
 		)
 
 		@JvmStatic

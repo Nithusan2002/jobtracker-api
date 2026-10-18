@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
+import org.springframework.http.converter.HttpMessageNotReadableException
 import java.time.Instant
 
 data class ErrorResponse(
@@ -17,6 +18,18 @@ data class ErrorResponse(
 
 @RestControllerAdvice
 class GlobalExceptionHandler {
+
+	@ExceptionHandler(DemoCapacityException::class)
+	fun handleCapacity(ex: DemoCapacityException): ResponseEntity<ErrorResponse> =
+		ResponseEntity.status(HttpStatus.CONFLICT).body(
+			ErrorResponse(status = 409, error = "Conflict", message = ex.message!!)
+		)
+
+	@ExceptionHandler(HttpMessageNotReadableException::class)
+	fun handleMalformedInput(): ResponseEntity<ErrorResponse> =
+		ResponseEntity.badRequest().body(
+			ErrorResponse(status = 400, error = "Bad Request", message = "Ugyldig JSON, dato eller status")
+		)
 
 	@ExceptionHandler(ApplicationNotFoundException::class)
 	fun handleNotFound(ex: ApplicationNotFoundException): ResponseEntity<ErrorResponse> =

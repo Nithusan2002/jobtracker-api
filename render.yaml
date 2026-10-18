@@ -6,16 +6,9 @@ services:
     repo: https://github.com/Nithusan2002/jobtracker-api
     branch: main
     autoDeployTrigger: commit
-    healthCheckPath: /
+    healthCheckPath: /actuator/health
     envVars:
+      - key: JOBTRACKER_DEMO_ENABLED
+        value: "true"
       - key: DATABASE_URL
-        fromDatabase:
-          name: jobtracker-db
-          property: connectionString
-
-databases:
-  - name: jobtracker-db
-    plan: free
-    databaseName: jobtracker
-    user: jobtracker
-    postgresMajorVersion: "17"
+        sync: false
